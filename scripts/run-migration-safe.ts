@@ -3,7 +3,6 @@
  * Uses existing credentials from .env.local to run the migration
  */
 
-import { createClient } from '@supabase/supabase-js';
 import * as dotenv from 'dotenv';
 import { fileURLToPath } from 'url';
 import { dirname, join } from 'path';
@@ -57,8 +56,9 @@ async function runMigration() {
     console.log('✅ Migration completed successfully!\n');
 
     console.log('🎉 All done! Now run: npm run populate-db');
-  } catch (error: any) {
-    console.error('❌ Migration failed:', error.message);
+  } catch (error) {
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error('❌ Migration failed:', errorMessage);
     console.error('\nIf the tables already exist, this is fine - skip to:');
     console.error('  npm run populate-db\n');
     process.exit(1);

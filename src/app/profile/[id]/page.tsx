@@ -24,54 +24,54 @@ export default function ProfilePage() {
   const isOwnProfile = user?.id === params.id;
 
   useEffect(() => {
-    loadProfile();
-  }, [params.id]);
+    async function loadProfile() {
+      if (!isSupabaseConfigured()) {
+        setLoading(false);
+        return;
+      }
 
-  async function loadProfile() {
-    if (!isSupabaseConfigured()) {
+      const supabase = getSupabase()!;
+
+      // Load profile
+      const { data: profileData } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("id", params.id)
+        .single();
+
+      setProfile(profileData);
+      setDisplayName(profileData?.display_name || "");
+      setBio(profileData?.bio || "");
+
+      // Load posts
+      const { data: postsData } = await supabase
+        .from("posts")
+        .select(`
+          *,
+          profile:profiles(*)
+        `)
+        .eq("user_id", params.id)
+        .order("created_at", { ascending: false });
+
+      setPosts(postsData || []);
+
+      // Load comments
+      const { data: commentsData } = await supabase
+        .from("comments")
+        .select(`
+          *,
+          profile:profiles(*)
+        `)
+        .eq("user_id", params.id)
+        .order("created_at", { ascending: false });
+
+      setComments(commentsData || []);
+
       setLoading(false);
-      return;
     }
 
-    const supabase = getSupabase()!;
-
-    // Load profile
-    const { data: profileData } = await supabase
-      .from("profiles")
-      .select("*")
-      .eq("id", params.id)
-      .single();
-
-    setProfile(profileData);
-    setDisplayName(profileData?.display_name || "");
-    setBio(profileData?.bio || "");
-
-    // Load posts
-    const { data: postsData } = await supabase
-      .from("posts")
-      .select(`
-        *,
-        profile:profiles(*)
-      `)
-      .eq("user_id", params.id)
-      .order("created_at", { ascending: false });
-
-    setPosts(postsData || []);
-
-    // Load comments
-    const { data: commentsData } = await supabase
-      .from("comments")
-      .select(`
-        *,
-        profile:profiles(*)
-      `)
-      .eq("user_id", params.id)
-      .order("created_at", { ascending: false });
-
-    setComments(commentsData || []);
-
-    setLoading(false);
-  }
+    loadProfile();
+  }, [params.id]);
 
   async function handleSaveProfile() {
     if (!isOwnProfile || !user) return;
@@ -89,7 +89,8 @@ export default function ProfilePage() {
 
     if (!error) {
       setEditing(false);
-      loadProfile();
+      // Reload profile data
+      window.location.reload();
     }
   }
 
@@ -247,7 +248,6 @@ export default function ProfilePage() {
                       key={post.id}
                       post={post}
                       onClick={() => router.push(`/post/${post.id}`)}
-                      onVoteChange={loadProfile}
                     />
                   ))
                 )}

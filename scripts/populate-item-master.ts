@@ -158,8 +158,6 @@ async function main() {
   console.log('🔗 Step 3: Linking menu_items to item_master...');
 
   for (const masterItem of createdItems || []) {
-    const normalized = normalizeItemName(masterItem.canonical_name);
-
     // Update all menu_items with this normalized name
     const { error: updateError } = await supabase
       .from('menu_items')

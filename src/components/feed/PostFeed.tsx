@@ -16,54 +16,6 @@ export default function PostFeed() {
   const [sortBy, setSortBy] = useState<SortOption>("hot");
   const [timeFilter, setTimeFilter] = useState<TimeFilter>("all");
 
-  useEffect(() => {
-    load();
-  }, [sortBy, timeFilter]);
-
-  async function load() {
-    if (isSupabaseConfigured()) {
-      const supabase = getSupabase()!;
-      let query = supabase.from("posts").select(`
-        *,
-        profile:profiles(*)
-      `);
-
-      // Time filter
-      if (timeFilter === "today") {
-        const today = new Date().toISOString().slice(0, 10);
-        query = query.gte("created_at", `${today}T00:00:00`);
-      }
-
-      // Sorting
-      if (sortBy === "new") {
-        query = query.order("created_at", { ascending: false });
-      } else if (sortBy === "top") {
-        query = query.order("upvotes", { ascending: false });
-      } else {
-        // hot - combination of upvotes and recency
-        query = query.order("upvotes", { ascending: false });
-      }
-
-      const { data } = await query;
-
-      if (data) {
-        // Apply hot algorithm client-side for better control
-        if (sortBy === "hot") {
-          const sorted = [...data].sort((a, b) => {
-            const aScore = calculateHotScore(a);
-            const bScore = calculateHotScore(b);
-            return bScore - aScore;
-          });
-          setPosts(sorted);
-        } else {
-          setPosts(data);
-        }
-        return;
-      }
-    }
-    setPosts(mockPosts);
-  }
-
   function calculateHotScore(post: Post): number {
     const score = post.upvotes - post.downvotes;
     const ageInHours =
@@ -71,6 +23,54 @@ export default function PostFeed() {
     // Reddit hot algorithm: log(score) - age/45
     return Math.log10(Math.max(Math.abs(score), 1)) * Math.sign(score) - ageInHours / 45;
   }
+
+  useEffect(() => {
+    async function load() {
+      if (isSupabaseConfigured()) {
+        const supabase = getSupabase()!;
+        let query = supabase.from("posts").select(`
+          *,
+          profile:profiles(*)
+        `);
+
+        // Time filter
+        if (timeFilter === "today") {
+          const today = new Date().toISOString().slice(0, 10);
+          query = query.gte("created_at", `${today}T00:00:00`);
+        }
+
+        // Sorting
+        if (sortBy === "new") {
+          query = query.order("created_at", { ascending: false });
+        } else if (sortBy === "top") {
+          query = query.order("upvotes", { ascending: false });
+        } else {
+          // hot - combination of upvotes and recency
+          query = query.order("upvotes", { ascending: false });
+        }
+
+        const { data } = await query;
+
+        if (data) {
+          // Apply hot algorithm client-side for better control
+          if (sortBy === "hot") {
+            const sorted = [...data].sort((a, b) => {
+              const aScore = calculateHotScore(a);
+              const bScore = calculateHotScore(b);
+              return bScore - aScore;
+            });
+            setPosts(sorted);
+          } else {
+            setPosts(data);
+          }
+          return;
+        }
+      }
+      setPosts(mockPosts);
+    }
+
+    load();
+  }, [sortBy, timeFilter]);
 
   return (
     <div className="flex-1 overflow-y-auto px-6 py-4 bg-zinc-50 dark:bg-zinc-950">
@@ -125,7 +125,6 @@ export default function PostFeed() {
                 key={post.id}
                 post={post}
                 onClick={() => router.push(`/post/${post.id}`)}
-                onVoteChange={load}
               />
             ))
           )}
